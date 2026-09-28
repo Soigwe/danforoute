@@ -251,9 +251,10 @@
         const map = L.map('map', { zoomControl: false }).setView([6.5244, 3.3792], 11);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // Ultra-clean CartoDB Positron Tiles
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap'
+        // CartoDB Voyager Tile Layer with API Key
+        L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_42eu_1_6d0ada7c3bd84d557366ff2c', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+            maxZoom: 19
         }).addTo(map);
 
         let activeLayers = [];
