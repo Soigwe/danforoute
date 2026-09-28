@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DanfoRoute - Clean Lagos Transit</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DanfoRoute - Lagos Real Road Transit</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -11,146 +11,161 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        * { -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        #map { height: 100vh; width: 100vw; z-index: 1; }
+        #map { height: 100vh; width: 100vw; position: absolute; inset: 0; z-index: 1; }
         .leaflet-control-container { z-index: 10; }
-        .leaflet-bar { border: none !important; box-shadow: 0 4px 20px rgba(0,0,0,0.08) !important; border-radius: 12px !important; overflow: hidden; }
-        .leaflet-bar a { border: none !important; color: #1e293b !important; }
         
         /* GNSS Pulsing dot */
         .gps-indicator {
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             background-color: #2563eb;
             border-radius: 50%;
             border: 3px solid #ffffff;
-            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.35);
             animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
         }
         @keyframes pulse-ring {
-            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
-            70% { box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); }
+            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
+            70% { box-shadow: 0 0 0 16px rgba(37, 99, 235, 0); }
             100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
         }
 
+        /* Bottom Sheet Transition for Mobile */
+        .sheet-transition {
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.35s ease;
+        }
+        
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
     </style>
 </head>
 <body class="h-screen w-screen overflow-hidden bg-slate-900 text-slate-900 select-none">
 
-    <!-- Main Map Background -->
-    <div id="map" class="absolute inset-0"></div>
+    <!-- Map Canvas -->
+    <div id="map"></div>
 
-    <!-- Floating Floating Search & Routing Panel -->
-    <div class="absolute top-4 left-4 bottom-4 w-[400px] max-w-[calc(100vw-32px)] z-[1000] flex flex-col pointer-events-none">
-        
-        <!-- Main Card Container -->
-        <div class="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-slate-100/80 flex flex-col pointer-events-auto h-full overflow-hidden transition-all duration-300">
+    <!-- Floating Top Bar for Mobile & Desktop -->
+    <div class="absolute top-3 left-3 right-3 md:left-4 md:right-auto md:w-[380px] z-[1000] pointer-events-auto">
+        <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-slate-200/80 p-2.5 flex items-center justify-between gap-2">
+            <div class="flex items-center space-x-2 pl-1.5">
+                <span class="text-xl">🚌</span>
+                <span class="text-sm font-extrabold text-slate-900 tracking-tight">DanfoRoute</span>
+            </div>
             
-            <!-- App Header -->
-            <div class="px-6 pt-5 pb-4 border-b border-slate-100 flex items-center justify-between">
-                <div class="flex items-center space-x-2.5">
-                    <div class="w-9 h-9 rounded-2xl bg-amber-400 flex items-center justify-center shadow-sm text-lg font-black">
-                        🚌
-                    </div>
-                    <div>
-                        <h1 class="text-base font-extrabold text-slate-900 tracking-tight leading-tight">DanfoRoute</h1>
-                        <p class="text-[11px] font-medium text-slate-400">Lagos Transit & Commute</p>
-                    </div>
-                </div>
-
-                <!-- AI Quick Trigger -->
-                <button onclick="toggleAI()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">
-                    <span>✨</span>
-                    <span>Ask AI</span>
+            <!-- Quick Action Buttons -->
+            <div class="flex items-center gap-1.5">
+                <button onclick="toggleSearchModal()" id="search-pill-btn" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1">
+                    <span>🔍</span> <span id="search-pill-label">Route</span>
                 </button>
-            </div>
-
-            <!-- Route Inputs -->
-            <div class="p-5 pb-3">
-                <div class="relative bg-slate-50 p-2 rounded-2xl border border-slate-200/80 space-y-1.5">
-                    <!-- Origin -->
-                    <div class="flex items-center px-2 py-1">
-                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-3 shrink-0 ring-4 ring-emerald-100"></span>
-                        <select id="origin-select" onchange="calculateRoutes()" class="w-full bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer truncate">
-                            <!-- Populated by JS -->
-                        </select>
-                    </div>
-
-                    <div class="h-px bg-slate-200/60 mx-6 relative">
-                        <!-- Swap button -->
-                        <button onclick="swapLocations()" class="absolute -top-3 right-2 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-500 hover:text-slate-900 hover:scale-110 transition text-[10px] font-bold">
-                            ⇅
-                        </button>
-                    </div>
-
-                    <!-- Destination -->
-                    <div class="flex items-center px-2 py-1">
-                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500 mr-3 shrink-0 ring-4 ring-rose-100"></span>
-                        <select id="dest-select" onchange="calculateRoutes()" class="w-full bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer truncate">
-                            <!-- Populated by JS -->
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Quick Presets / Hub Chips -->
-                <div class="flex gap-1.5 overflow-x-auto pt-3 pb-1 no-scrollbar text-[11px]">
-                    <span class="text-slate-400 self-center text-[10px] font-bold uppercase tracking-wider shrink-0 mr-1">Popular:</span>
-                    <button onclick="quickSet('ELEKO', 'MILE2')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-900 font-medium whitespace-nowrap transition">Eleko → Mile 2</button>
-                    <button onclick="quickSet('IKORODU', 'CMS')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-900 font-medium whitespace-nowrap transition">Ikorodu → CMS</button>
-                    <button onclick="quickSet('IKEJA', 'VI')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-900 font-medium whitespace-nowrap transition">Ikeja → VI</button>
-                    <button onclick="quickSet('AJAH', 'OSHODI')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-900 font-medium whitespace-nowrap transition">Ajah → Oshodi</button>
-                </div>
-            </div>
-
-            <!-- Route Options List -->
-            <div id="routes-list" class="flex-1 overflow-y-auto px-5 pb-5 space-y-3">
-                <!-- Dynamically injected route cards -->
-            </div>
-
-            <!-- Panel Footer Status -->
-            <div class="p-4 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
-                <span class="flex items-center gap-1.5 font-medium">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Live Lagos transit network
-                </span>
-                <button onclick="useCurrentLocation()" class="text-blue-600 font-bold hover:underline flex items-center gap-1">
-                    <span>📍</span> My Location
+                <button onclick="toggleAI()" class="px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition flex items-center gap-1">
+                    <span>✨</span> AI
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Minimal AI Assistant Drawer / Modal -->
-    <div id="ai-modal" class="absolute bottom-6 right-6 w-96 max-w-[calc(100vw-48px)] z-[1000] hidden flex-col bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-slate-100 overflow-hidden transition-all duration-300">
-        <div class="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+    <!-- Search Modal / Drawer (Opens when user wants to change route) -->
+    <div id="search-modal" class="absolute inset-x-3 top-16 md:left-4 md:right-auto md:w-[380px] z-[1001] bg-white/98 backdrop-blur-lg rounded-3xl shadow-2xl border border-slate-200 p-4 transition-all duration-300 hidden">
+        <div class="flex justify-between items-center mb-3">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Plan Your Commute</h2>
+            <button onclick="toggleSearchModal()" class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-xs">&times;</button>
+        </div>
+        
+        <div class="space-y-2 bg-slate-50 p-2.5 rounded-2xl border border-slate-200/80">
+            <div class="flex items-center px-2 py-1">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2.5 shrink-0 ring-4 ring-emerald-100"></span>
+                <select id="origin-select" class="w-full bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer truncate"></select>
+            </div>
+            <div class="h-px bg-slate-200/80 mx-6 relative">
+                <button onclick="swapLocations()" class="absolute -top-2.5 right-2 w-5 h-5 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-600 hover:text-slate-900 text-[10px] font-bold">⇅</button>
+            </div>
+            <div class="flex items-center px-2 py-1">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 mr-2.5 shrink-0 ring-4 ring-rose-100"></span>
+                <select id="dest-select" class="w-full bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer truncate"></select>
+            </div>
+        </div>
+
+        <!-- Preset Chips -->
+        <div class="flex gap-1.5 overflow-x-auto py-2.5 no-scrollbar text-[11px]">
+            <button onclick="quickSet('ELEKO', 'MILE2')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-900 font-medium whitespace-nowrap transition">Eleko → Mile 2</button>
+            <button onclick="quickSet('IKORODU', 'CMS')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-900 font-medium whitespace-nowrap transition">Ikorodu → CMS</button>
+            <button onclick="quickSet('IKEJA', 'VI')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-900 font-medium whitespace-nowrap transition">Ikeja → VI</button>
+            <button onclick="quickSet('AJAH', 'OSHODI')" class="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-900 font-medium whitespace-nowrap transition">Ajah → Oshodi</button>
+        </div>
+
+        <button onclick="executeRouteSearch()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition active:scale-95 shadow-md flex items-center justify-center gap-1.5">
+            <span>🚀</span> Find Best Road Route
+        </button>
+    </div>
+
+    <!-- Mobile-Optimized Bottom Sheet (Slides down to reveal map when route requested) -->
+    <div id="bottom-sheet" class="sheet-transition fixed bottom-0 inset-x-0 md:inset-x-auto md:left-4 md:bottom-4 md:w-[380px] z-[1000] bg-white/95 backdrop-blur-md rounded-t-3xl md:rounded-3xl shadow-2xl border border-slate-200/80 flex flex-col pointer-events-auto max-h-[75vh] md:max-h-[80vh] overflow-hidden">
+        
+        <!-- Sheet Handle / Header -->
+        <div onclick="toggleSheetExpand()" class="pt-2.5 pb-2 px-5 cursor-pointer flex flex-col items-center select-none border-b border-slate-100">
+            <div class="w-10 h-1 bg-slate-300 rounded-full mb-2"></div>
+            
+            <!-- Peek Bar Summary (Always visible) -->
+            <div class="w-full flex items-center justify-between">
+                <div>
+                    <div id="peek-badges" class="flex items-center gap-1 mb-0.5"></div>
+                    <h3 id="peek-title" class="text-xs font-extrabold text-slate-900">Calculating...</h3>
+                </div>
+                <div class="text-right">
+                    <div id="peek-fare" class="text-sm font-black text-slate-900">--</div>
+                    <div id="peek-time" class="text-[11px] font-bold text-emerald-600">--</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expandable Details Container -->
+        <div id="sheet-content" class="overflow-y-auto px-5 py-3 space-y-3 flex-1">
+            <!-- Alternative route cards or step-by-step breakdown -->
+            <div id="steps-container" class="space-y-3 relative pl-3 border-l-2 border-slate-100 ml-1.5 py-1">
+                <!-- Dynamically injected step cards -->
+            </div>
+
+            <!-- Start Live Navigation Action -->
+            <button onclick="startNavigation(event)" id="nav-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-md transition active:scale-95">
+                <span>🛰️</span>
+                <span>Start Live Road GNSS Navigation</span>
+            </button>
+            
+            <!-- Quick Safety Note -->
+            <p class="text-[10px] text-slate-400 text-center pb-2">🛣️ Road paths snap to actual Lagos expressways & bridges via OSRM</p>
+        </div>
+    </div>
+
+    <!-- AI Advisor Floating Modal -->
+    <div id="ai-modal" class="fixed bottom-24 right-3 md:bottom-6 md:right-6 w-84 max-w-[calc(100vw-32px)] z-[1002] hidden flex-col bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="px-4 py-3 bg-slate-900 text-white flex items-center justify-between">
             <div class="flex items-center space-x-2">
                 <span class="text-sm">🤖</span>
                 <div>
-                    <h3 class="text-xs font-bold leading-tight">Lagos Transit Assistant</h3>
-                    <p class="text-[10px] text-slate-400">Contextual advice & safety tips</p>
+                    <h3 class="text-xs font-bold leading-tight">Lagos Transit AI</h3>
+                    <p class="text-[10px] text-slate-400">Road traffic & fare advisor</p>
                 </div>
             </div>
-            <button onclick="toggleAI()" class="text-slate-400 hover:text-white text-lg font-bold leading-none">&times;</button>
+            <button onclick="toggleAI()" class="text-slate-400 hover:text-white text-lg font-bold">&times;</button>
         </div>
-        <div id="ai-chat" class="h-64 p-4 overflow-y-auto space-y-2.5 text-xs bg-slate-50/50">
-            <div class="bg-slate-100 text-slate-800 p-3 rounded-2xl rounded-tl-none self-start leading-relaxed">
-                👋 <b>How can I assist your commute?</b> Ask about current road jams, Danfo rain surcharges, bus stop safety, or Cowry card fares.
+        <div id="ai-chat" class="h-52 p-3 overflow-y-auto space-y-2 text-xs bg-slate-50">
+            <div class="bg-slate-100 text-slate-800 p-2.5 rounded-2xl rounded-tl-none self-start leading-relaxed">
+                👋 Ask me about road conditions on 3rd Mainland Bridge, Eko Bridge traffic, or rain fare surges!
             </div>
         </div>
-        <div class="p-3 bg-white border-t border-slate-100 flex gap-2">
-            <input type="text" id="ai-input" placeholder="Ask anything about this route..." class="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-900" onkeypress="if(event.key === 'Enter') sendAI()"/>
-            <button onclick="sendAI()" class="bg-slate-900 hover:bg-slate-800 text-white px-4 rounded-xl text-xs font-bold transition">Send</button>
+        <div class="p-2.5 bg-white border-t border-slate-100 flex gap-2">
+            <input type="text" id="ai-input" placeholder="Ask anything about this route..." class="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-slate-900" onkeypress="if(event.key === 'Enter') sendAI()"/>
+            <button onclick="sendAI()" class="bg-slate-900 text-white px-3 rounded-xl text-xs font-bold hover:bg-slate-800">Send</button>
         </div>
     </div>
 
     <script>
         // ==========================================
-        // 1. TRANSIT HUBS (30+ Major Hubs)
+        // 1. PAN-LAGOS HUBS WITH PRECISE COORDINATES
         // ==========================================
         const HUBS = {
             "ELEKO": { name: "Eleko Junction", zone: "Ibeju-Lekki", coords: [6.4700, 3.8600] },
@@ -158,7 +173,7 @@
             "SANGOTEDO": { name: "Sangotedo / Novare Mall", zone: "Ajah Axis", coords: [6.4712, 3.6300] },
             "AJAH": { name: "Ajah Underbridge", zone: "Island East", coords: [6.4673, 3.5651] },
             "CHEVRON": { name: "Chevron Toll", zone: "Lekki", coords: [6.4380, 3.5350] },
-            "LEKKI1": { name: "Lekki Phase 1 (Admiralty)", zone: "Lekki", coords: [6.4474, 3.4731] },
+            "LEKKI1": { name: "Lekki Phase 1 Gate", zone: "Lekki", coords: [6.4474, 3.4731] },
             "VI": { name: "Victoria Island (Eko Hotel)", zone: "Island", coords: [6.4281, 3.4219] },
             "OBALENDE": { name: "Obalende Terminal", zone: "Island", coords: [6.4502, 3.4150] },
             "CMS": { name: "CMS / Marina Hub & Metro", zone: "Island Central", coords: [6.4531, 3.3888] },
@@ -185,9 +200,6 @@
             "BADAGRY": { name: "Badagry Roundabout", zone: "Badagry Axis", coords: [6.4310, 2.8870] }
         };
 
-        // ==========================================
-        // 2. NETWORK EDGES
-        // ==========================================
         const EDGES = [
             { u: "EPE", v: "ELEKO", mode: "danfo", fare: 700, time: 25, desc: "Danfo along Lekki-Epe Expressway" },
             { u: "ELEKO", v: "SANGOTEDO", mode: "danfo", fare: 400, time: 20, desc: "Korope to Novare Mall / Sangotedo" },
@@ -201,8 +213,8 @@
             { u: "AJAH", v: "OSHODI", mode: "danfo", fare: 1000, time: 55, desc: "Direct Danfo via 3rd Mainland Bridge" },
             { u: "OBALENDE", v: "CMS", mode: "danfo", fare: 200, time: 10, desc: "Short transit hop to CMS" },
             
-            // Rail & Mainland West
-            { u: "CMS", v: "MILE2", mode: "rail", fare: 750, time: 20, desc: "LRMT Blue Line Metro (Fast & Zero Traffic)" },
+            // Blue Line Metro (Marina <-> Mile 2)
+            { u: "CMS", v: "MILE2", mode: "rail", fare: 750, time: 20, desc: "LRMT Blue Line Metro (Elevated Track, 0 Traffic)" },
             { u: "CMS", v: "ORILE", mode: "rail", fare: 500, time: 12, desc: "LRMT Blue Line Train" },
             { u: "ORILE", v: "MILE2", mode: "rail", fare: 400, time: 8, desc: "LRMT Blue Line Train" },
             { u: "MILE2", v: "FESTAC", mode: "danfo", fare: 200, time: 10, desc: "Keke / Danfo into Festac" },
@@ -237,7 +249,6 @@
             { u: "MILE2", v: "IKOTUN", mode: "danfo", fare: 450, time: 30, desc: "Danfo via Ago Palace Way to Ikotun" }
         ];
 
-        // Build Graph
         const GRAPH = {};
         Object.keys(HUBS).forEach(k => GRAPH[k] = []);
         EDGES.forEach(e => {
@@ -246,12 +257,11 @@
         });
 
         // ==========================================
-        // 3. MAP INITIALIZATION (Minimalist Theme)
+        // 2. MAP SETUP & AUTHENTICATED TILE LAYER
         // ==========================================
         const map = L.map('map', { zoomControl: false }).setView([6.5244, 3.3792], 11);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // CartoDB Voyager Tile Layer with API Key
         L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_42eu_1_6d0ada7c3bd84d557366ff2c', {
             attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
             maxZoom: 19
@@ -259,16 +269,55 @@
 
         let activeLayers = [];
         let currentPosMarker = null;
+        let activeFullRoadCoords = [];
+        let isSheetExpanded = false;
 
-        function clearMap() {
+        function clearMapLayers() {
             activeLayers.forEach(l => map.removeLayer(l));
             activeLayers = [];
         }
 
         // ==========================================
-        // 4. SHORTEST PATH ROUTER (Dijkstra)
+        // 3. REAL ROAD & TRACK GEOMETRY ENGINE (OSRM)
         // ==========================================
-        function solvePath(start, target, weightKey) {
+        async function fetchRealRoadPath(fromCoords, toCoords, mode) {
+            // Specialized Track for Blue Line Metro (Marina -> National Theatre -> Orile -> Mile 2)
+            if (mode === 'rail') {
+                return [
+                    [6.4531, 3.3888], // Marina Hub
+                    [6.4630, 3.3710], // National Theatre
+                    [6.4710, 3.3420], // Orile Iganmu
+                    [6.4670, 3.3220], // Alaba Rail
+                    [6.4627, 3.3032]  // Mile 2 Station
+                ];
+            }
+            if (mode === 'ferry') {
+                return [
+                    [6.4531, 3.3888], // Marina Jetty
+                    [6.4750, 3.4000], // Channel
+                    [6.5400, 3.4400], // Lagos Lagoon
+                    [6.6180, 3.5080]  // Ikorodu Jetty
+                ];
+            }
+
+            // Real Road Snapping via OSRM Public Router
+            try {
+                const url = `https://router.project-osrm.org/route/v1/driving/${fromCoords[1]},${fromCoords[0]};${toCoords[1]},${toCoords[0]}?overview=full&geometries=geojson`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.routes && data.routes[0] && data.routes[0].geometry) {
+                    return data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                }
+            } catch (err) {
+                console.warn("OSRM routing fallback:", err);
+            }
+            return [fromCoords, toCoords];
+        }
+
+        // ==========================================
+        // 4. DIJKSTRA GRAPH SOLVER
+        // ==========================================
+        function solvePath(start, target) {
             const dist = {}, prev = {}, pq = [];
             Object.keys(HUBS).forEach(n => { dist[n] = Infinity; prev[n] = null; });
             dist[start] = 0;
@@ -281,7 +330,7 @@
                 if (cost > dist[current]) continue;
 
                 (GRAPH[current] || []).forEach(edge => {
-                    const newCost = dist[current] + edge[weightKey];
+                    const newCost = dist[current] + edge.time;
                     if (newCost < dist[edge.to]) {
                         dist[edge.to] = newCost;
                         prev[edge.to] = { from: current, edge: edge };
@@ -299,7 +348,7 @@
             }
 
             return {
-                title: weightKey === 'time' ? 'Fastest Multi-Modal' : 'Cheapest Route',
+                title: 'Fastest Multi-Modal Road Route',
                 steps: steps,
                 totalFare: steps.reduce((a, s) => a + s.fare, 0),
                 totalTime: steps.reduce((a, s) => a + s.time, 0)
@@ -307,7 +356,7 @@
         }
 
         // ==========================================
-        // 5. UI CONTROLLERS
+        // 5. UI CONTROLLERS & BOTTOM SHEET LOGIC
         // ==========================================
         function populateDropdowns() {
             const orig = document.getElementById('origin-select');
@@ -323,25 +372,39 @@
             dest.value = "MILE2";
         }
 
+        function toggleSearchModal() {
+            const m = document.getElementById('search-modal');
+            m.classList.toggle('hidden');
+        }
+
+        function toggleSheetExpand() {
+            const sheet = document.getElementById('bottom-sheet');
+            isSheetExpanded = !isSheetExpanded;
+            if (isSheetExpanded) {
+                sheet.style.maxHeight = '75vh';
+            } else {
+                sheet.style.maxHeight = '180px';
+            }
+        }
+
         function quickSet(u, v) {
             document.getElementById('origin-select').value = u;
             document.getElementById('dest-select').value = v;
-            calculateRoutes();
+            executeRouteSearch();
         }
 
         function swapLocations() {
             const o = document.getElementById('origin-select');
             const d = document.getElementById('dest-select');
             const t = o.value; o.value = d.value; d.value = t;
-            calculateRoutes();
         }
 
         function getModeBadge(mode) {
             switch(mode) {
-                case 'rail': return '<span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold text-[10px]">🚆 Blue Line Rail</span>';
-                case 'brt': return '<span class="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 font-bold text-[10px]">🚌 BRT Lane</span>';
-                case 'ferry': return '<span class="px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 font-bold text-[10px]">⛴️ Ferry</span>';
-                default: return '<span class="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-bold text-[10px]">🚐 Danfo</span>';
+                case 'rail': return '<span class="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 font-bold text-[10px]">🚆 Blue Line Rail</span>';
+                case 'brt': return '<span class="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 font-bold text-[10px]">🚌 BRT Lane</span>';
+                case 'ferry': return '<span class="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 font-bold text-[10px]">⛴️ Ferry</span>';
+                default: return '<span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-bold text-[10px]">🚐 Danfo</span>';
             }
         }
 
@@ -354,114 +417,80 @@
             }
         }
 
-        let currentActiveRouteIndex = 0;
-        let globalRoutes = [];
-
-        function calculateRoutes() {
+        async function executeRouteSearch() {
+            // Close search modal
+            document.getElementById('search-modal').classList.add('hidden');
+            
             const start = document.getElementById('origin-select').value;
             const target = document.getElementById('dest-select').value;
-            const container = document.getElementById('routes-list');
-
-            if (start === target) {
-                container.innerHTML = `<div class="p-4 bg-slate-50 text-slate-500 text-xs rounded-2xl text-center">Please select different origin and destination stops.</div>`;
-                return;
-            }
-
-            const fastest = solvePath(start, target, 'time');
-            const cheapest = solvePath(start, target, 'fare');
             
-            globalRoutes = [];
-            if (fastest) globalRoutes.push(fastest);
-            if (cheapest && JSON.stringify(cheapest.steps) !== JSON.stringify(fastest?.steps)) {
-                globalRoutes.push(cheapest);
-            }
+            document.getElementById('search-pill-label').innerText = `${HUBS[start].name.split(' ')[0]} → ${HUBS[target].name.split(' ')[0]}`;
 
-            container.innerHTML = '';
-            if (globalRoutes.length === 0) {
-                container.innerHTML = `<div class="p-4 bg-rose-50 text-rose-700 text-xs rounded-2xl text-center">No mapped route between these hubs yet.</div>`;
+            const route = solvePath(start, target);
+            if (!route) {
+                alert("No mapped connection found between these locations.");
                 return;
             }
 
-            globalRoutes.forEach((route, idx) => {
-                const card = document.createElement('div');
-                card.className = `border rounded-2xl p-4 transition-all duration-200 cursor-pointer ${idx === 0 ? 'bg-white border-slate-900 shadow-md ring-1 ring-slate-900/5' : 'bg-slate-50 border-slate-200/80 hover:bg-white'}`;
-                
-                // Mode summary pills
-                const modes = [...new Set(route.steps.map(s => s.mode))];
-                const modePills = modes.map(getModeBadge).join(' ');
+            // Update Peek Bar
+            const modes = [...new Set(route.steps.map(s => s.mode))];
+            document.getElementById('peek-badges').innerHTML = modes.map(getModeBadge).join(' ');
+            document.getElementById('peek-title').innerText = `${HUBS[start].name} → ${HUBS[target].name}`;
+            document.getElementById('peek-fare').innerText = `₦${route.totalFare.toLocaleString()}`;
+            document.getElementById('peek-time').innerText = `⏱ ~${route.totalTime} mins`;
 
-                card.innerHTML = `
-                    <div onclick="selectRouteCard(${idx})" class="flex justify-between items-start">
-                        <div class="space-y-1">
-                            <div class="flex items-center gap-1.5">${modePills}</div>
-                            <h3 class="text-xs font-extrabold text-slate-900">${route.title}</h3>
-                            <p class="text-[11px] text-slate-400 font-medium">${route.steps.length} transit legs</p>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-sm font-black text-slate-900">₦${route.totalFare.toLocaleString()}</div>
-                            <div class="text-[11px] font-semibold text-emerald-600">⏱ ~${route.totalTime} mins</div>
-                        </div>
+            // Update Steps
+            const stepsContainer = document.getElementById('steps-container');
+            stepsContainer.innerHTML = route.steps.map((step, idx) => `
+                <div class="relative pl-3 pb-2">
+                    <span class="absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white" style="background-color: ${getModeColor(step.mode)}"></span>
+                    <div class="flex justify-between items-baseline">
+                        <h4 class="text-xs font-bold text-slate-900">${idx + 1}. ${HUBS[step.from].name} → ${HUBS[step.to].name}</h4>
+                        <span class="text-[11px] font-extrabold text-slate-700">₦${step.fare}</span>
                     </div>
+                    <p class="text-[11px] text-slate-500 mt-0.5">${step.desc}</p>
+                    <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium mt-1 inline-block">⏱ ~${step.time} mins</span>
+                </div>
+            `).join('');
 
-                    <!-- Step by step details -->
-                    <div id="details-${idx}" class="${idx === 0 ? 'block' : 'hidden'} mt-4 pt-3 border-t border-slate-100">
-                        <div class="space-y-3 relative pl-3 border-l-2 border-slate-100 ml-1">
-                            ${route.steps.map((step, sIdx) => `
-                                <div class="relative pl-3">
-                                    <span class="absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white" style="background-color: ${getModeColor(step.mode)}"></span>
-                                    <div class="flex justify-between items-baseline">
-                                        <h4 class="text-xs font-bold text-slate-800">${HUBS[step.from].name} → ${HUBS[step.to].name}</h4>
-                                        <span class="text-[11px] font-extrabold text-slate-600">₦${step.fare}</span>
-                                    </div>
-                                    <p class="text-[11px] text-slate-400 mt-0.5 leading-snug">${step.desc}</p>
-                                </div>
-                            `).join('')}
-                        </div>
+            // Collapse bottom sheet to peek mode so full map is clearly visible
+            const sheet = document.getElementById('bottom-sheet');
+            sheet.style.maxHeight = '180px';
+            isSheetExpanded = false;
 
-                        <!-- Action Button -->
-                        <button onclick="startNavigation(event)" class="mt-4 w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition active:scale-95">
-                            <span>🛰️</span>
-                            <span>Start Live Navigation</span>
-                        </button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-
-            selectRouteCard(0);
+            // Render Road-Snapped Geometry on Map
+            await renderRoadRouteOnMap(route.steps);
         }
 
-        function selectRouteCard(idx) {
-            currentActiveRouteIndex = idx;
-            document.querySelectorAll('[id^="details-"]').forEach((el, i) => {
-                el.className = i === idx ? 'block mt-4 pt-3 border-t border-slate-100' : 'hidden';
-            });
-            renderOnMap(globalRoutes[idx].steps);
-        }
+        async function renderRoadRouteOnMap(steps) {
+            clearMapLayers();
+            activeFullRoadCoords = [];
+            const allBoundsCoords = [];
 
-        function renderOnMap(steps) {
-            clearMap();
-            const latLngs = [];
-
-            steps.forEach((step, idx) => {
+            for (let i = 0; i < steps.length; i++) {
+                const step = steps[i];
                 const fromCoords = HUBS[step.from].coords;
                 const toCoords = HUBS[step.to].coords;
                 const color = getModeColor(step.mode);
 
-                if (idx === 0) latLngs.push(fromCoords);
-                latLngs.push(toCoords);
+                allBoundsCoords.push(fromCoords, toCoords);
 
-                // Segment line
-                const line = L.polyline([fromCoords, toCoords], {
+                // Fetch real road coordinates via OSRM
+                const roadCoords = await fetchRealRoadPath(fromCoords, toCoords, step.mode);
+                activeFullRoadCoords.push(...roadCoords);
+
+                // Road Polyline
+                const line = L.polyline(roadCoords, {
                     color: color,
-                    weight: 5,
+                    weight: 6,
                     opacity: 0.9,
+                    lineJoin: 'round',
                     lineCap: 'round',
                     dashArray: step.mode === 'danfo' ? '4, 8' : null
                 }).addTo(map);
                 activeLayers.push(line);
 
-                // Markers
+                // Hub Marker
                 const mk = L.circleMarker(fromCoords, {
                     radius: 6,
                     fillColor: color,
@@ -471,7 +500,7 @@
                 }).addTo(map).bindPopup(`<strong class="text-xs">${HUBS[step.from].name}</strong>`);
                 activeLayers.push(mk);
 
-                if (idx === steps.length - 1) {
+                if (i === steps.length - 1) {
                     const destMk = L.circleMarker(toCoords, {
                         radius: 8,
                         fillColor: "#0f172a",
@@ -481,24 +510,30 @@
                     }).addTo(map).bindPopup(`<strong class="text-xs">Destination: ${HUBS[step.to].name}</strong>`);
                     activeLayers.push(destMk);
                 }
-            });
+            }
 
-            map.fitBounds(L.latLngBounds(latLngs), { padding: [60, 60] });
+            // Fit Map Viewport with mobile bottom offset padding
+            if (activeFullRoadCoords.length > 0) {
+                map.fitBounds(L.latLngBounds(activeFullRoadCoords), {
+                    paddingTopLeft: [40, 40],
+                    paddingBottomRight: [40, 220] // Reserve space for mobile bottom sheet
+                });
+            }
         }
 
         // ==========================================
-        // 6. GNSS / GPS LIVE TRACKING
+        // 6. LIVE ROAD GNSS NAVIGATION
         // ==========================================
         function startNavigation(e) {
             e.stopPropagation();
-            const btn = e.currentTarget;
-            btn.innerHTML = '<span>📡</span> <span class="animate-pulse">GNSS Tracking Active</span>';
-            btn.className = 'mt-4 w-full bg-blue-600 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm';
+            const btn = document.getElementById('nav-btn');
+            btn.innerHTML = '<span>🛰️</span> <span class="animate-pulse">Live Road Navigation Active...</span>';
+            btn.className = 'w-full bg-emerald-600 text-white py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-md';
 
             const gnssIcon = L.divIcon({
                 className: '',
                 html: '<div class="gps-indicator"></div>',
-                iconSize: [16, 16], iconAnchor: [8, 8]
+                iconSize: [18, 18], iconAnchor: [9, 9]
             });
 
             if (navigator.geolocation) {
@@ -512,38 +547,29 @@
                     }
                     map.panTo([lat, lng]);
                 }, err => {
-                    simulateGPS();
+                    simulateRoadGPS();
                 }, { enableHighAccuracy: true });
             } else {
-                simulateGPS();
+                simulateRoadGPS();
             }
         }
 
-        function simulateGPS() {
-            const steps = globalRoutes[currentActiveRouteIndex].steps;
-            const coords = steps.map(s => HUBS[s.from].coords);
-            coords.push(HUBS[steps[steps.length - 1].to].coords);
+        function simulateRoadGPS() {
+            if (activeFullRoadCoords.length === 0) return;
 
-            const gnssIcon = L.divIcon({ className: '', html: '<div class="gps-indicator"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
+            const gnssIcon = L.divIcon({ className: '', html: '<div class="gps-indicator"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
             let idx = 0;
             if (!currentPosMarker) {
-                currentPosMarker = L.marker(coords[idx], {icon: gnssIcon}).addTo(map);
+                currentPosMarker = L.marker(activeFullRoadCoords[idx], {icon: gnssIcon}).addTo(map);
                 activeLayers.push(currentPosMarker);
             }
-            setInterval(() => {
-                idx = (idx + 1) % coords.length;
-                currentPosMarker.setLatLng(coords[idx]);
-                map.panTo(coords[idx]);
-            }, 3000);
-        }
 
-        function useCurrentLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    document.getElementById('origin-select').value = "CMS";
-                    calculateRoutes();
-                });
-            }
+            // Animate along real road points
+            setInterval(() => {
+                idx = (idx + 1) % activeFullRoadCoords.length;
+                currentPosMarker.setLatLng(activeFullRoadCoords[idx]);
+                map.panTo(activeFullRoadCoords[idx]);
+            }, 1200);
         }
 
         // ==========================================
@@ -561,25 +587,25 @@
             const text = inp.value.trim();
             if (!text) return;
 
-            chat.innerHTML += `<div class="bg-slate-900 text-white p-2.5 rounded-2xl rounded-tr-none self-end text-xs ml-auto w-10/12 mb-1.5 leading-relaxed font-medium">${text}</div>`;
+            chat.innerHTML += `<div class="bg-slate-900 text-white p-2.5 rounded-2xl rounded-tr-none self-end text-xs ml-auto w-10/12 mb-1.5 font-medium">${text}</div>`;
             inp.value = '';
             chat.scrollTop = chat.scrollHeight;
 
             setTimeout(() => {
-                let reply = "Ensure you hold some small cash notes (₦200, ₦500) for Danfo conductors to avoid change arguments, and keep your Cowry Card ready for BRT and Blue Line terminals.";
-                if (text.toLowerCase().includes("safe") || text.toLowerCase().includes("night")) {
-                    reply = "Late-night commutes in Lagos are best done via dedicated BRT buses or the Blue Line train from Marina. Avoid boarding unbranded empty Danfos alone at secluded stops.";
-                } else if (text.toLowerCase().includes("rain") || text.toLowerCase().includes("surge")) {
-                    reply = "Heavy rains typically spike Danfo fares along the Lekki-Epe expressway and Ikorodu Road by ~30–50%. The Blue Line Train and dedicated BRT lines have locked standard fares.";
+                let reply = "Keep small change (₦200, ₦500) handy for Danfo conductors and top up your Cowry Card for Blue Line Rail and BRT lanes.";
+                if (text.toLowerCase().includes("rain") || text.toLowerCase().includes("surge")) {
+                    reply = "🌧️ During rain, Lekki-Epe expressway Danfo fares surge by ₦300–₦500. The Blue Line train is immune to rain delays and surges.";
+                } else if (text.toLowerCase().includes("traffic") || text.toLowerCase().includes("bridge")) {
+                    reply = "🚗 3rd Mainland Bridge is moving well westbound. Eko bridge has typical slowdown around Costain junction.";
                 }
-                chat.innerHTML += `<div class="bg-slate-100 text-slate-800 p-3 rounded-2xl rounded-tl-none self-start text-xs w-11/12 mb-1.5 border border-slate-200/50 leading-relaxed"><b>AI Assistant:</b> ${reply}</div>`;
+                chat.innerHTML += `<div class="bg-slate-100 text-slate-800 p-2.5 rounded-2xl rounded-tl-none self-start text-xs w-11/12 mb-1.5 border border-slate-200/60"><b>AI Advisor:</b> ${reply}</div>`;
                 chat.scrollTop = chat.scrollHeight;
             }, 800);
         }
 
         window.onload = () => {
             populateDropdowns();
-            calculateRoutes();
+            executeRouteSearch();
         };
     </script>
 </body>
