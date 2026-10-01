@@ -1,0 +1,43 @@
+* { -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Plus Jakarta Sans', sans-serif; }
+#map { height: 100vh; width: 100vw; position: absolute; inset: 0; z-index: 1; }
+.leaflet-control-container { z-index: 10; }
+
+/* GNSS Pulsing dot */
+.gps-indicator {
+    width: 18px;
+    height: 18px;
+    background-color: #2563eb;
+    border-radius: 50%;
+    border: 3px solid #ffffff;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.35);
+    animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+@keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
+    70% { box-shadow: 0 0 0 16px rgba(37, 99, 235, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+
+/* Animated Dashed Polyline */
+@keyframes dash-flow {
+    to { stroke-dashoffset: -24; }
+}
+.animated-route-line {
+    animation: dash-flow 1.5s linear infinite;
+}
+
+/* Bottom Sheet Transition */
+.sheet-transition {
+    transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s ease;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Hide scrollbar for carousel */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

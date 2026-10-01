@@ -1,0 +1,21 @@
+{
+  "name": "danforoute-lagos",
+  "version": "1.0.0",
+  "description": "Pan-Lagos Multi-Modal Public Transit & Intermodal Router with road-snapped OSRM routing and GNSS navigation.",
+  "main": "index.html",
+  "scripts": {
+    "start": "python3 -m http.server 8080"
+  },
+  "keywords": [
+    "lagos",
+    "danfo",
+    "public-transit",
+    "nigeria",
+    "osm",
+    "osrm",
+    "leaflet",
+    "navigation"
+  ],
+  "author": "Soigwe <soigwe03@gmail.com>",
+  "license": "MIT"
+}

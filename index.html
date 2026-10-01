@@ -3,65 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DanfoRoute - Pan-Lagos Multi-Route Transit</title>
+    <title>DanfoRoute - Lagos Real Road Transit</title>
+    
+    <!-- Dependencies -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        * { -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        #map { height: 100vh; width: 100vw; position: absolute; inset: 0; z-index: 1; }
-        .leaflet-control-container { z-index: 10; }
-        
-        /* GNSS Pulsing dot */
-        .gps-indicator {
-            width: 18px;
-            height: 18px;
-            background-color: #2563eb;
-            border-radius: 50%;
-            border: 3px solid #ffffff;
-            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.35);
-            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
-        }
-        @keyframes pulse-ring {
-            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
-            70% { box-shadow: 0 0 0 16px rgba(37, 99, 235, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
-        }
-
-        /* Animated Dashed Polyline */
-        @keyframes dash-flow {
-            to { stroke-dashoffset: -24; }
-        }
-        .animated-route-line {
-            animation: dash-flow 1.5s linear infinite;
-        }
-
-        /* Bottom Sheet Transition */
-        .sheet-transition {
-            transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s ease;
-        }
-        
-        /* Smooth Custom Scrollbar */
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        /* Hide scrollbar for carousel */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    </style>
+    
+    <!-- Custom Modular Styles -->
+    <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body class="h-screen w-screen overflow-hidden bg-slate-900 text-slate-900 select-none">
 
-    <!-- Map Viewport -->
+    <!-- Map Canvas -->
     <div id="map"></div>
 
-    <!-- Floating Top Search Bar -->
+    <!-- Floating Top Bar -->
     <div class="absolute top-3 left-3 right-3 md:left-4 md:right-auto md:w-[400px] z-[1000] pointer-events-auto">
         <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 p-2.5 flex items-center justify-between gap-2 transition hover:shadow-2xl">
             <div class="flex items-center space-x-2 pl-1.5 cursor-pointer" onclick="toggleSearchModal()">
@@ -120,14 +80,13 @@
         </button>
     </div>
 
-    <!-- Mobile-Optimized Sliding Bottom Drawer (Displays All Route Alternatives) -->
+    <!-- Sliding Bottom Drawer -->
     <div id="bottom-sheet" class="sheet-transition fixed bottom-0 inset-x-0 md:inset-x-auto md:left-4 md:bottom-4 md:w-[400px] z-[1000] bg-white/95 backdrop-blur-md rounded-t-3xl md:rounded-3xl shadow-2xl border border-slate-200/80 flex flex-col pointer-events-auto max-h-[170px] md:max-h-[220px] overflow-hidden">
         
-        <!-- Sheet Handle & Route Carousel Header -->
+        <!-- Drawer Header & Route Carousel -->
         <div class="pt-2 px-4 pb-2 border-b border-slate-100/80 flex flex-col items-center select-none bg-slate-50/50">
             <div onclick="toggleSheetExpand()" class="w-12 h-1.5 bg-slate-300 hover:bg-slate-400 rounded-full mb-2 cursor-pointer transition"></div>
             
-            <!-- Horizontal Carousel of ALL Route Alternatives -->
             <div class="w-full flex items-center justify-between mb-1.5">
                 <span class="text-[10px] font-black uppercase tracking-wider text-slate-400" id="route-count-label">Available Options (3)</span>
                 <span onclick="toggleSheetExpand()" class="text-[10px] font-extrabold text-blue-600 cursor-pointer flex items-center gap-0.5" id="expand-label">
@@ -135,10 +94,7 @@
                 </span>
             </div>
 
-            <!-- Route Alternatives Horizontal Card List -->
-            <div id="route-cards-carousel" class="w-full flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                <!-- Dynamically populated route option cards -->
-            </div>
+            <div id="route-cards-carousel" class="w-full flex gap-2 overflow-x-auto pb-1 no-scrollbar"></div>
         </div>
 
         <!-- Expandable Details Container -->
@@ -154,12 +110,8 @@
                 </div>
             </div>
 
-            <!-- Step by step timeline -->
-            <div id="steps-container" class="space-y-3 relative pl-3 border-l-2 border-slate-100 ml-1.5 py-1">
-                <!-- Dynamically populated steps -->
-            </div>
+            <div id="steps-container" class="space-y-3 relative pl-3 border-l-2 border-slate-100 ml-1.5 py-1"></div>
 
-            <!-- Start Live Navigation Action -->
             <button onclick="startNavigation(event)" id="nav-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-2 shadow-md transition active:scale-95">
                 <span>🛰️</span>
                 <span>Start Live Road GNSS Navigation</span>
@@ -169,7 +121,7 @@
         </div>
     </div>
 
-    <!-- AI Advisor Floating Modal -->
+    <!-- AI Advisor Modal -->
     <div id="ai-modal" class="fixed bottom-24 right-3 md:bottom-6 md:right-6 w-84 max-w-[calc(100vw-32px)] z-[1002] hidden flex-col bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
         <div class="px-4 py-3 bg-slate-900 text-white flex items-center justify-between">
             <div class="flex items-center space-x-2">
@@ -192,590 +144,10 @@
         </div>
     </div>
 
-    <script>
-        // ==========================================
-        // 1. PAN-LAGOS HUBS WITH PRECISE COORDINATES
-        // ==========================================
-        const HUBS = {
-            "ELEKO": { name: "Eleko Junction", zone: "Ibeju-Lekki", coords: [6.4700, 3.8600] },
-            "EPE": { name: "Epe T-Junction", zone: "Epe Axis", coords: [6.5840, 3.9830] },
-            "SANGOTEDO": { name: "Sangotedo / Novare Mall", zone: "Ajah Axis", coords: [6.4712, 3.6300] },
-            "AJAH": { name: "Ajah Underbridge", zone: "Island East", coords: [6.4673, 3.5651] },
-            "CHEVRON": { name: "Chevron Toll", zone: "Lekki", coords: [6.4380, 3.5350] },
-            "LEKKI1": { name: "Lekki Phase 1 Gate", zone: "Lekki", coords: [6.4474, 3.4731] },
-            "VI": { name: "Victoria Island (Eko Hotel)", zone: "Island", coords: [6.4281, 3.4219] },
-            "OBALENDE": { name: "Obalende Terminal", zone: "Island", coords: [6.4502, 3.4150] },
-            "CMS": { name: "CMS / Marina Hub & Metro", zone: "Island Central", coords: [6.4531, 3.3888] },
-            "MILE2": { name: "Mile 2 Interchange & Rail", zone: "Mainland West", coords: [6.4627, 3.3032] },
-            "FESTAC": { name: "Festac 1st Gate", zone: "Mainland West", coords: [6.4680, 3.2850] },
-            "ORILE": { name: "Orile Rail Station", zone: "Mainland West", coords: [6.4710, 3.3420] },
-            "COSTAIN": { name: "Costain / Eko Bridge", zone: "Mainland South", coords: [6.4810, 3.3680] },
-            "SURULERE": { name: "Ojuelegba / Stadium", zone: "Surulere", coords: [6.5050, 3.3600] },
-            "YABA": { name: "Yaba Tech / Tejuosho", zone: "Mainland Central", coords: [6.5167, 3.3765] },
-            "OYINGBO": { name: "Oyingbo Terminal", zone: "Mainland Central", coords: [6.4800, 3.3830] },
-            "OSHODI": { name: "Oshodi Transport Interchange", zone: "Interchange", coords: [6.5540, 3.3540] },
-            "IKEJA": { name: "Ikeja Underbridge / Terminal", zone: "Capital Hub", coords: [6.5960, 3.3420] },
-            "MARYLAND": { name: "Maryland BRT Hub", zone: "Mainland Central", coords: [6.5700, 3.3680] },
-            "OJOTA": { name: "Ojota Main Terminal", zone: "Interchange", coords: [6.5850, 3.3860] },
-            "KETU": { name: "Ketu Garage", zone: "Ikorodu Axis", coords: [6.6020, 3.3910] },
-            "IKORODU": { name: "Ikorodu Garage & BRT", zone: "Ikorodu Axis", coords: [6.6180, 3.5080] },
-            "BERGER": { name: "Berger Terminal", zone: "Interstate Link", coords: [6.6450, 3.3700] },
-            "AGEGE": { name: "Agege Pen Cinema Rail", zone: "Mainland North", coords: [6.6200, 3.3280] },
-            "ABULE_EGBA": { name: "Abule Egba BRT", zone: "Alimosho", coords: [6.6500, 3.2820] },
-            "IYANA_IPAJA": { name: "Iyana Ipaja Main Garage", zone: "Alimosho", coords: [6.6110, 3.2790] },
-            "EGBEDA": { name: "Egbeda Bus Stop", zone: "Alimosho", coords: [6.5920, 3.2880] },
-            "IKOTUN": { name: "Ikotun Market", zone: "Alimosho", coords: [6.5560, 3.2680] },
-            "IYANA_IBA": { name: "Iyana Iba / LASU Gate", zone: "Badagry Axis", coords: [6.4710, 3.1950] },
-            "BADAGRY": { name: "Badagry Roundabout", zone: "Badagry Axis", coords: [6.4310, 2.8870] }
-        };
-
-        const EDGES = [
-            { u: "EPE", v: "ELEKO", mode: "danfo", fare: 700, time: 25, desc: "Danfo along Lekki-Epe Expressway" },
-            { u: "ELEKO", v: "SANGOTEDO", mode: "danfo", fare: 400, time: 20, desc: "Korope to Novare Mall / Sangotedo" },
-            { u: "SANGOTEDO", v: "AJAH", mode: "danfo", fare: 300, time: 15, desc: "Danfo into Ajah Underbridge" },
-            { u: "ELEKO", v: "AJAH", mode: "danfo", fare: 600, time: 30, desc: "Direct Coaster to Ajah Underbridge" },
-            { u: "AJAH", v: "CHEVRON", mode: "danfo", fare: 200, time: 10, desc: "Danfo along Lekki corridor" },
-            { u: "CHEVRON", v: "LEKKI1", mode: "danfo", fare: 300, time: 15, desc: "Danfo to Lekki Phase 1 Gate" },
-            { u: "LEKKI1", v: "VI", mode: "danfo", fare: 300, time: 15, desc: "Danfo to Victoria Island" },
-            { u: "LEKKI1", v: "OBALENDE", mode: "danfo", fare: 400, time: 20, desc: "Danfo via Lekki-Ikoyi Link Bridge" },
-            { u: "AJAH", v: "CMS", mode: "danfo", fare: 800, time: 45, desc: "Direct Bus to CMS / Marina" },
-            { u: "AJAH", v: "OSHODI", mode: "danfo", fare: 1000, time: 55, desc: "Direct Danfo via 3rd Mainland Bridge" },
-            { u: "OBALENDE", v: "CMS", mode: "danfo", fare: 200, time: 10, desc: "Short transit hop to CMS" },
-            
-            // Blue Line Metro & Pure Road links
-            { u: "CMS", v: "MILE2", mode: "rail", fare: 750, time: 20, desc: "LRMT Blue Line Metro (Marina to Mile 2 - 0 Traffic)" },
-            { u: "CMS", v: "MILE2", mode: "danfo", fare: 600, time: 50, desc: "Direct Danfo / Coaster via Eko Bridge & Orile to Mile 2" },
-            { u: "CMS", v: "ORILE", mode: "rail", fare: 500, time: 12, desc: "LRMT Blue Line Train" },
-            { u: "ORILE", v: "MILE2", mode: "rail", fare: 400, time: 8, desc: "LRMT Blue Line Train" },
-            { u: "MILE2", v: "FESTAC", mode: "danfo", fare: 200, time: 10, desc: "Keke / Danfo into Festac" },
-            { u: "MILE2", v: "IYANA_IBA", mode: "danfo", fare: 500, time: 30, desc: "Danfo from Mile 2 Oke to LASU/Iba" },
-            { u: "IYANA_IBA", v: "BADAGRY", mode: "danfo", fare: 800, time: 45, desc: "Direct Danfo to Badagry" },
-
-            // Central / Mainland Links
-            { u: "CMS", v: "COSTAIN", mode: "danfo", fare: 300, time: 15, desc: "Danfo via Eko Bridge to Costain" },
-            { u: "COSTAIN", v: "MILE2", mode: "danfo", fare: 400, time: 30, desc: "Danfo from Costain / National Theatre to Mile 2" },
-            { u: "COSTAIN", v: "SURULERE", mode: "danfo", fare: 250, time: 12, desc: "Danfo to Ojuelegba / Stadium" },
-            { u: "SURULERE", v: "YABA", mode: "danfo", fare: 200, time: 10, desc: "Danfo / Keke to Yaba Tech" },
-            { u: "CMS", v: "YABA", mode: "brt", fare: 400, time: 25, desc: "BRT via Carter Bridge to Yaba" },
-            { u: "YABA", v: "MARYLAND", mode: "brt", fare: 300, time: 15, desc: "BRT Corridor along Ikorodu Rd" },
-            { u: "MARYLAND", v: "OJOTA", mode: "brt", fare: 200, time: 8, desc: "BRT lane to Ojota" },
-            { u: "CMS", v: "IKORODU", mode: "brt", fare: 900, time: 50, desc: "Direct BRT from Marina to Ikorodu" },
-            { u: "CMS", v: "IKORODU", mode: "ferry", fare: 1500, time: 35, desc: "Water Ferry from Marina Jetty to Ikorodu" },
-            { u: "OJOTA", v: "IKORODU", mode: "brt", fare: 500, time: 30, desc: "Direct BRT corridor to Ikorodu Garage" },
-
-            // Oshodi Interchange Axis
-            { u: "MILE2", v: "OSHODI", mode: "danfo", fare: 500, time: 25, desc: "Danfo via Oshodi-Apapa Expressway (Cele, Iyana-Itire)" },
-            { u: "YABA", v: "OSHODI", mode: "danfo", fare: 350, time: 20, desc: "Danfo from Yaba / Jibowu to Oshodi" },
-            { u: "OSHODI", v: "IKEJA", mode: "danfo", fare: 300, time: 15, desc: "Danfo / BRT to Ikeja Underbridge" },
-            { u: "IKEJA", v: "VI", mode: "danfo", fare: 800, time: 40, desc: "Direct Danfo / AC Coaster to VI" },
-            { u: "OSHODI", v: "MARYLAND", mode: "danfo", fare: 300, time: 15, desc: "Danfo to Maryland Mall" },
-            { u: "IKEJA", v: "BERGER", mode: "danfo", fare: 400, time: 20, desc: "Danfo to Berger Interstate Terminal" },
-            { u: "OJOTA", v: "BERGER", mode: "danfo", fare: 300, time: 15, desc: "Danfo along Expressway to Berger" },
-            { u: "IKEJA", v: "AGEGE", mode: "danfo", fare: 300, time: 15, desc: "Danfo to Pen Cinema Agege" },
-            { u: "AGEGE", v: "ABULE_EGBA", mode: "brt", fare: 250, time: 12, desc: "BRT to Abule Egba" },
-            { u: "OSHODI", v: "ABULE_EGBA", mode: "brt", fare: 500, time: 25, desc: "Dedicated Oshodi-Abule Egba BRT Lane" },
-            { u: "OSHODI", v: "IYANA_IPAJA", mode: "danfo", fare: 400, time: 25, desc: "Danfo to Iyana Ipaja Garage" },
-            { u: "IYANA_IPAJA", v: "EGBEDA", mode: "danfo", fare: 200, time: 10, desc: "Danfo to Egbeda" },
-            { u: "EGBEDA", v: "IKOTUN", mode: "danfo", fare: 250, time: 12, desc: "Danfo to Ikotun Market" },
-            { u: "MILE2", v: "IKOTUN", mode: "danfo", fare: 450, time: 30, desc: "Danfo via Ago Palace Way to Ikotun" }
-        ];
-
-        // Ensure Multigraph support (multiple edges between same nodes)
-        const GRAPH = {};
-        Object.keys(HUBS).forEach(k => GRAPH[k] = []);
-        EDGES.forEach((e, edgeIdx) => {
-            GRAPH[e.u].push({ id: edgeIdx, to: e.v, mode: e.mode, fare: e.fare, time: e.time, desc: e.desc });
-            GRAPH[e.v].push({ id: edgeIdx, to: e.u, mode: e.mode, fare: e.fare, time: e.time, desc: e.desc });
-        });
-
-        // ==========================================
-        // 2. MAP INITIALIZATION & TILE LAYER
-        // ==========================================
-        const map = L.map('map', { zoomControl: false }).setView([6.5244, 3.3792], 11);
-        L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-        L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_42eu_1_6d0ada7c3bd84d557366ff2c', {
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-            maxZoom: 19
-        }).addTo(map);
-
-        let activeMapLayers = [];
-        let inactiveMapLayers = [];
-        let currentPosMarker = null;
-        let activeFullRoadCoords = [];
-        let isSheetExpanded = false;
-        let calculatedRoutes = [];
-        let activeRouteIdx = 0;
-        let routeRoadCache = {};
-
-        function clearMapLayers() {
-            activeMapLayers.forEach(l => map.removeLayer(l));
-            inactiveMapLayers.forEach(l => map.removeLayer(l));
-            activeMapLayers = [];
-            inactiveMapLayers = [];
-        }
-
-        // ==========================================
-        // 3. REAL ROAD GEOMETRY ENGINE (OSRM)
-        // ==========================================
-        async function fetchRealRoadPath(fromCoords, toCoords, mode) {
-            const cacheKey = `${fromCoords.join(',')}_${toCoords.join(',')}_${mode}`;
-            if (routeRoadCache[cacheKey]) return routeRoadCache[cacheKey];
-
-            if (mode === 'rail') {
-                const track = [
-                    [6.4531, 3.3888], // Marina Hub
-                    [6.4630, 3.3710], // National Theatre
-                    [6.4710, 3.3420], // Orile Iganmu
-                    [6.4670, 3.3220], // Alaba Rail
-                    [6.4627, 3.3032]  // Mile 2 Station
-                ];
-                routeRoadCache[cacheKey] = track;
-                return track;
-            }
-            if (mode === 'ferry') {
-                const waterTrack = [
-                    [6.4531, 3.3888], [6.4750, 3.4000], [6.5400, 3.4400], [6.6180, 3.5080]
-                ];
-                routeRoadCache[cacheKey] = waterTrack;
-                return waterTrack;
-            }
-
-            try {
-                const url = `https://router.project-osrm.org/route/v1/driving/${fromCoords[1]},${fromCoords[0]};${toCoords[1]},${toCoords[0]}?overview=full&geometries=geojson`;
-                const res = await fetch(url);
-                const data = await res.json();
-                if (data.routes && data.routes[0] && data.routes[0].geometry) {
-                    const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-                    routeRoadCache[cacheKey] = coords;
-                    return coords;
-                }
-            } catch (err) {
-                console.warn("OSRM routing fallback:", err);
-            }
-            return [fromCoords, toCoords];
-        }
-
-        // ==========================================
-        // 4. MULTI-ROUTE SOLVER (Calculates ALL Alternatives)
-        // ==========================================
-        function findDiverseAlternativeRoutes(start, target) {
-            const routes = [];
-
-            // 1. Solver: Custom Dijkstra with Mode Preferences & Edge Bans
-            const solveDijkstra = (options = {}) => {
-                const dist = {}, prev = {}, pq = [];
-                Object.keys(HUBS).forEach(n => { dist[n] = Infinity; prev[n] = null; });
-                dist[start] = 0;
-                pq.push({ node: start, cost: 0 });
-
-                while (pq.length > 0) {
-                    pq.sort((a, b) => a.cost - b.cost);
-                    const { node: current, cost } = pq.shift();
-                    if (current === target) break;
-                    if (cost > dist[current]) continue;
-
-                    (GRAPH[current] || []).forEach(edge => {
-                        if (options.banModes && options.banModes.includes(edge.mode)) return;
-                        if (options.banEdges && options.banEdges.includes(edge.id)) return;
-
-                        let edgeCost = edge[options.weightKey || 'time'];
-                        if (options.preferRail && edge.mode === 'rail') edgeCost *= 0.5;
-                        if (options.preferDanfo && edge.mode === 'danfo') edgeCost *= 0.8;
-
-                        const newCost = dist[current] + edgeCost;
-                        if (newCost < dist[edge.to]) {
-                            dist[edge.to] = newCost;
-                            prev[edge.to] = { from: current, edge: edge };
-                            pq.push({ node: edge.to, cost: newCost });
-                        }
-                    });
-                }
-
-                if (dist[target] === Infinity) return null;
-                const steps = [];
-                let curr = target;
-                while (prev[curr]) {
-                    steps.unshift({ from: prev[curr].from, to: curr, ...prev[curr].edge });
-                    curr = prev[curr].from;
-                }
-                return steps;
-            };
-
-            // Option 1: Absolute Fastest (Multi-Modal with Rail/BRT priority)
-            const r1Steps = solveDijkstra({ weightKey: 'time', preferRail: true });
-            if (r1Steps) {
-                routes.push({
-                    title: 'Recommended (Fastest)',
-                    tag: 'Best Choice',
-                    tagBg: 'bg-emerald-500 text-white',
-                    steps: r1Steps,
-                    totalFare: r1Steps.reduce((a, s) => a + s.fare, 0),
-                    totalTime: r1Steps.reduce((a, s) => a + s.time, 0)
-                });
-            }
-
-            // Option 2: Pure Danfo / Road Corridor (No Rail/Ferry)
-            const r2Steps = solveDijkstra({ weightKey: 'time', banModes: ['rail', 'ferry'] });
-            if (r2Steps && JSON.stringify(r2Steps.map(s => s.to)) !== JSON.stringify(r1Steps?.map(s => s.to))) {
-                routes.push({
-                    title: 'Pure Danfo Road Route',
-                    tag: 'Danfo Only',
-                    tagBg: 'bg-amber-400 text-amber-950',
-                    steps: r2Steps,
-                    totalFare: r2Steps.reduce((a, s) => a + s.fare, 0),
-                    totalTime: r2Steps.reduce((a, s) => a + s.time, 0)
-                });
-            }
-
-            // Option 3: Alternative Via Major Interchange (e.g., via Oshodi or Costain by penalizing top edges)
-            if (r1Steps && r1Steps.length > 0) {
-                const usedEdgeIds = r1Steps.map(s => s.id);
-                const r3Steps = solveDijkstra({ weightKey: 'time', banEdges: usedEdgeIds.slice(0, 2) });
-                if (r3Steps && !routes.some(r => JSON.stringify(r.steps.map(s => s.to)) === JSON.stringify(r3Steps.map(s => s.to)))) {
-                    routes.push({
-                        title: 'Alternative Transit Corridor',
-                        tag: 'Alternative',
-                        tagBg: 'bg-slate-200 text-slate-800',
-                        steps: r3Steps,
-                        totalFare: r3Steps.reduce((a, s) => a + s.fare, 0),
-                        totalTime: r3Steps.reduce((a, s) => a + s.time, 0)
-                    });
-                }
-            }
-
-            // Option 4: Cheapest Transit Route
-            const r4Steps = solveDijkstra({ weightKey: 'fare' });
-            if (r4Steps && !routes.some(r => JSON.stringify(r.steps.map(s => s.to)) === JSON.stringify(r4Steps.map(s => s.to)))) {
-                routes.push({
-                    title: 'Budget Commute',
-                    tag: 'Cheapest',
-                    tagBg: 'bg-blue-500 text-white',
-                    steps: r4Steps,
-                    totalFare: r4Steps.reduce((a, s) => a + s.fare, 0),
-                    totalTime: r4Steps.reduce((a, s) => a + s.time, 0)
-                });
-            }
-
-            // Sort: Best/Fastest first
-            routes.sort((a, b) => a.totalTime - b.totalTime);
-            return routes;
-        }
-
-        // ==========================================
-        // 5. UI CONTROLLERS & CAROUSEL INTERACTIONS
-        // ==========================================
-        function populateDropdowns() {
-            const orig = document.getElementById('origin-select');
-            const dest = document.getElementById('dest-select');
-            const sorted = Object.keys(HUBS).sort((a, b) => HUBS[a].name.localeCompare(HUBS[b].name));
-            
-            sorted.forEach(k => {
-                orig.add(new Option(`${HUBS[k].name} (${HUBS[k].zone})`, k));
-                dest.add(new Option(`${HUBS[k].name} (${HUBS[k].zone})`, k));
-            });
-
-            orig.value = "ELEKO";
-            dest.value = "MILE2";
-        }
-
-        function toggleSearchModal() {
-            const m = document.getElementById('search-modal');
-            m.classList.toggle('hidden');
-        }
-
-        function toggleSheetExpand() {
-            const sheet = document.getElementById('bottom-sheet');
-            const label = document.getElementById('expand-label');
-            isSheetExpanded = !isSheetExpanded;
-            if (isSheetExpanded) {
-                sheet.style.maxHeight = '75vh';
-                label.innerHTML = '<span>Collapse</span> <span>▲</span>';
-            } else {
-                sheet.style.maxHeight = window.innerWidth < 768 ? '170px' : '220px';
-                label.innerHTML = '<span>Details</span> <span>▼</span>';
-            }
-        }
-
-        function quickSet(u, v) {
-            document.getElementById('origin-select').value = u;
-            document.getElementById('dest-select').value = v;
-            executeRouteSearch();
-        }
-
-        function swapLocations() {
-            const o = document.getElementById('origin-select');
-            const d = document.getElementById('dest-select');
-            const t = o.value; o.value = d.value; d.value = t;
-        }
-
-        function getModeColor(mode) {
-            switch(mode) {
-                case 'rail': return '#2563eb'; // Blue
-                case 'brt': return '#e11d48';  // Red
-                case 'ferry': return '#0d9488'; // Teal
-                default: return '#f59e0b';     // Amber
-            }
-        }
-
-        function getModeIcon(mode) {
-            switch(mode) {
-                case 'rail': return '🚆';
-                case 'brt': return '🔴';
-                case 'ferry': return '⛴️';
-                default: return '🚐';
-            }
-        }
-
-        async function executeRouteSearch() {
-            document.getElementById('search-modal').classList.add('hidden');
-            
-            const start = document.getElementById('origin-select').value;
-            const target = document.getElementById('dest-select').value;
-            
-            document.getElementById('top-bar-sub').innerText = `${HUBS[start].name.split(' ')[0]} → ${HUBS[target].name.split(' ')[0]}`;
-
-            calculatedRoutes = findDiverseAlternativeRoutes(start, target);
-            if (calculatedRoutes.length === 0) {
-                alert("No transit paths found between these stops.");
-                return;
-            }
-
-            document.getElementById('route-count-label').innerText = `${calculatedRoutes.length} Available Options (Ranked)`;
-
-            // Render Route Carousel Cards
-            const carousel = document.getElementById('route-cards-carousel');
-            carousel.innerHTML = '';
-
-            calculatedRoutes.forEach((route, idx) => {
-                const card = document.createElement('div');
-                card.className = `flex-shrink-0 w-44 p-2.5 rounded-2xl border cursor-pointer transition-all duration-200 select-none ${idx === 0 ? 'bg-white border-slate-900 shadow-md ring-2 ring-slate-900/10' : 'bg-slate-100/80 border-slate-200 hover:bg-white'}`;
-                card.id = `carousel-card-${idx}`;
-                card.onclick = () => selectActiveRoute(idx);
-
-                const modeIcons = [...new Set(route.steps.map(s => getModeIcon(s.mode)))].join(' ');
-
-                card.innerHTML = `
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md ${route.tagBg}">${route.tag}</span>
-                        <span class="text-xs font-black text-slate-900">₦${route.totalFare.toLocaleString()}</span>
-                    </div>
-                    <div class="flex items-center gap-1 my-0.5 text-xs">${modeIcons}</div>
-                    <div class="flex justify-between items-center text-[10px] text-slate-500 font-bold">
-                        <span class="text-emerald-600">⏱ ~${route.totalTime}m</span>
-                        <span>${route.steps.length} legs</span>
-                    </div>
-                `;
-                carousel.appendChild(card);
-            });
-
-            // Set Initial Active Route to #1 (Best)
-            await selectActiveRoute(0);
-        }
-
-        async function selectActiveRoute(idx) {
-            activeRouteIdx = idx;
-            const route = calculatedRoutes[idx];
-
-            // Update Carousel Card Highlights
-            calculatedRoutes.forEach((_, i) => {
-                const el = document.getElementById(`carousel-card-${i}`);
-                if (el) {
-                    if (i === idx) {
-                        el.className = 'flex-shrink-0 w-44 p-2.5 rounded-2xl border cursor-pointer transition-all duration-200 select-none bg-white border-slate-900 shadow-md ring-2 ring-slate-900/10 transform scale-[1.02]';
-                    } else {
-                        el.className = 'flex-shrink-0 w-44 p-2.5 rounded-2xl border cursor-pointer transition-all duration-200 select-none bg-slate-100/80 border-slate-200 hover:bg-white opacity-75';
-                    }
-                }
-            });
-
-            // Update Expanded Step Breakdown
-            document.getElementById('active-route-name').innerText = route.title;
-            document.getElementById('active-route-fare').innerText = `₦${route.totalFare.toLocaleString()}`;
-            document.getElementById('active-route-time').innerText = `⏱ ~${route.totalTime} mins`;
-
-            const stepsContainer = document.getElementById('steps-container');
-            stepsContainer.innerHTML = route.steps.map((step, sIdx) => `
-                <div class="relative pl-3 pb-2">
-                    <span class="absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm" style="background-color: ${getModeColor(step.mode)}"></span>
-                    <div class="flex justify-between items-baseline">
-                        <h4 class="text-xs font-black text-slate-900">${sIdx + 1}. ${HUBS[step.from].name} → ${HUBS[step.to].name}</h4>
-                        <span class="text-[11px] font-extrabold text-slate-700">₦${step.fare}</span>
-                    </div>
-                    <p class="text-[11px] text-slate-500 mt-0.5">${step.desc}</p>
-                    <div class="flex gap-2 mt-1">
-                        <span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">⏱ ~${step.time} mins</span>
-                        <span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style="background-color: ${getModeColor(step.mode)}20; color: ${getModeColor(step.mode)}">${step.mode}</span>
-                    </div>
-                </div>
-            `).join('');
-
-            // Render on Map with Inactive Background Paths
-            await renderMapRoutes();
-        }
-
-        async function renderMapRoutes() {
-            clearMapLayers();
-            activeFullRoadCoords = [];
-
-            // 1. Draw Inactive Background Routes
-            for (let i = 0; i < calculatedRoutes.length; i++) {
-                if (i === activeRouteIdx) continue;
-                const otherRoute = calculatedRoutes[i];
-                for (const step of otherRoute.steps) {
-                    const fromCoords = HUBS[step.from].coords;
-                    const toCoords = HUBS[step.to].coords;
-                    const roadCoords = await fetchRealRoadPath(fromCoords, toCoords, step.mode);
-                    
-                    const bgLine = L.polyline(roadCoords, {
-                        color: '#94a3b8',
-                        weight: 4,
-                        opacity: 0.4,
-                        dashArray: '6, 6'
-                    }).addTo(map);
-                    inactiveMapLayers.push(bgLine);
-                }
-            }
-
-            // 2. Draw Active Route on Top (Vivid Colors + Road Snapped)
-            const currentRoute = calculatedRoutes[activeRouteIdx];
-            for (let i = 0; i < currentRoute.steps.length; i++) {
-                const step = currentRoute.steps[i];
-                const fromCoords = HUBS[step.from].coords;
-                const toCoords = HUBS[step.to].coords;
-                const color = getModeColor(step.mode);
-
-                const roadCoords = await fetchRealRoadPath(fromCoords, toCoords, step.mode);
-                activeFullRoadCoords.push(...roadCoords);
-
-                // Animated Path
-                const line = L.polyline(roadCoords, {
-                    color: color,
-                    weight: 6,
-                    opacity: 0.95,
-                    lineJoin: 'round',
-                    lineCap: 'round',
-                    className: 'animated-route-line',
-                    dashArray: step.mode === 'danfo' ? '6, 10' : null
-                }).addTo(map);
-                activeMapLayers.push(line);
-
-                // Origin & Hub Marker
-                const mk = L.circleMarker(fromCoords, {
-                    radius: 7,
-                    fillColor: color,
-                    color: "#ffffff",
-                    weight: 2,
-                    fillOpacity: 1
-                }).addTo(map).bindPopup(`<strong class="text-xs">${HUBS[step.from].name}</strong><br><span class="text-[10px] text-slate-500">${step.desc}</span>`);
-                activeMapLayers.push(mk);
-
-                if (i === currentRoute.steps.length - 1) {
-                    const destMk = L.circleMarker(toCoords, {
-                        radius: 8,
-                        fillColor: "#0f172a",
-                        color: "#ffffff",
-                        weight: 2,
-                        fillOpacity: 1
-                    }).addTo(map).bindPopup(`<strong class="text-xs">Destination: ${HUBS[step.to].name}</strong>`);
-                    activeMapLayers.push(destMk);
-                }
-            }
-
-            // Fit Viewport with Offset Padding for Bottom Drawer
-            if (activeFullRoadCoords.length > 0) {
-                map.fitBounds(L.latLngBounds(activeFullRoadCoords), {
-                    paddingTopLeft: [40, 40],
-                    paddingBottomRight: [40, window.innerWidth < 768 ? 200 : 120]
-                });
-            }
-        }
-
-        // ==========================================
-        // 6. LIVE ROAD GNSS NAVIGATION
-        // ==========================================
-        function startNavigation(e) {
-            e.stopPropagation();
-            const btn = document.getElementById('nav-btn');
-            btn.innerHTML = '<span>🛰️</span> <span class="animate-pulse">Live Road Navigation Active...</span>';
-            btn.className = 'w-full bg-emerald-600 text-white py-3 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-2 shadow-md';
-
-            const gnssIcon = L.divIcon({
-                className: '',
-                html: '<div class="gps-indicator"></div>',
-                iconSize: [18, 18], iconAnchor: [9, 9]
-            });
-
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(pos => {
-                    const lat = pos.coords.latitude, lng = pos.coords.longitude;
-                    if (!currentPosMarker) {
-                        currentPosMarker = L.marker([lat, lng], {icon: gnssIcon}).addTo(map);
-                        activeMapLayers.push(currentPosMarker);
-                    } else {
-                        currentPosMarker.setLatLng([lat, lng]);
-                    }
-                    map.panTo([lat, lng]);
-                }, err => {
-                    simulateRoadGPS();
-                }, { enableHighAccuracy: true });
-            } else {
-                simulateRoadGPS();
-            }
-        }
-
-        function simulateRoadGPS() {
-            if (activeFullRoadCoords.length === 0) return;
-
-            const gnssIcon = L.divIcon({ className: '', html: '<div class="gps-indicator"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
-            let idx = 0;
-            if (!currentPosMarker) {
-                currentPosMarker = L.marker(activeFullRoadCoords[idx], {icon: gnssIcon}).addTo(map);
-                activeMapLayers.push(currentPosMarker);
-            }
-
-            setInterval(() => {
-                idx = (idx + 1) % activeFullRoadCoords.length;
-                currentPosMarker.setLatLng(activeFullRoadCoords[idx]);
-                map.panTo(activeFullRoadCoords[idx]);
-            }, 1000);
-        }
-
-        // ==========================================
-        // 7. AI ASSISTANT MODAL
-        // ==========================================
-        function toggleAI() {
-            const m = document.getElementById('ai-modal');
-            m.classList.toggle('hidden');
-            m.classList.toggle('flex');
-        }
-
-        function sendAI() {
-            const inp = document.getElementById('ai-input');
-            const chat = document.getElementById('ai-chat');
-            const text = inp.value.trim();
-            if (!text) return;
-
-            chat.innerHTML += `<div class="bg-slate-900 text-white p-2.5 rounded-2xl rounded-tr-none self-end text-xs ml-auto w-10/12 mb-1.5 font-medium">${text}</div>`;
-            inp.value = '';
-            chat.scrollTop = chat.scrollHeight;
-
-            setTimeout(() => {
-                let reply = "Keep small change (₦200, ₦500) handy for Danfo conductors and top up your Cowry Card for Blue Line Rail and BRT lanes.";
-                if (text.toLowerCase().includes("rain") || text.toLowerCase().includes("surge")) {
-                    reply = "🌧️ During rain, Lekki-Epe expressway Danfo fares surge by ₦300–₦500. The Blue Line train is immune to rain delays and surges.";
-                } else if (text.toLowerCase().includes("traffic") || text.toLowerCase().includes("bridge")) {
-                    reply = "🚗 3rd Mainland Bridge is moving well westbound. Eko bridge has typical slowdown around Costain junction.";
-                }
-                chat.innerHTML += `<div class="bg-slate-100 text-slate-800 p-2.5 rounded-2xl rounded-tl-none self-start text-xs w-11/12 mb-1.5 border border-slate-200/60"><b>AI Advisor:</b> ${reply}</div>`;
-                chat.scrollTop = chat.scrollHeight;
-            }, 800);
-        }
-
-        window.onload = () => {
-            populateDropdowns();
-            executeRouteSearch();
-        };
-    </script>
+    <!-- Modular Script Imports -->
+    <script src="assets/js/hubs.js"></script>
+    <script src="assets/js/router.js"></script>
+    <script src="assets/js/ai.js"></script>
+    <script src="assets/js/app.js"></script>
 </body>
 </html>
